@@ -1,0 +1,10 @@
+[tool.poetry]
+name = "task-indev"
+version = "0.1.0"
+description = "A simplified crypto staking platform"
+authors = ["Ihor Prokopenko <i.prokopenko.dev@gmail.com>"]
+
+
+[tool.poetry.dependencies]
+python = "^3.11"
+django = "^4.2.6"
