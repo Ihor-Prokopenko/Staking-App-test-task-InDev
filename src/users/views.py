@@ -1,13 +1,13 @@
 from django.contrib.auth.hashers import make_password
-from rest_framework import status, filters, permissions
+from rest_framework import status, filters, permissions, mixins
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from users.models import User
-from users.serializers import UserSerializer
+from users.serializers import UserSerializer, UserEditSerializer
 from users.user_permissions import OwnOrAdminPermission
 
 
@@ -30,7 +30,7 @@ class UserCreateAPIView(CreateAPIView):
             serializer.validated_data["password"] = hashed_password
             serializer.save()
 
-            message = f"Registration successful."
+            message = f"Registration successful"
             status_code = status.HTTP_201_CREATED
 
         return Response({"message": message}, status=status_code)
@@ -71,3 +71,34 @@ class DeleteUserAPIView(APIView):
             return Response({"message": "User has not been deleted"}, status=status.HTTP_417_EXPECTATION_FAILED)
 
         return Response({"message": f"User(id={pk}) was deleted successfully"}, status=status.HTTP_200_OK)
+
+
+class UserEditView(mixins.UpdateModelMixin, GenericAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserEditSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        partial = True
+        user = request.user
+        serializer = self.get_serializer(user, data=request.data, partial=partial)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
+            field, message = (list(e.detail.keys())[0], list(e.detail.values())[0][0])
+            message = f"{field}: {message}"
+            status_code = status.HTTP_400_BAD_REQUEST
+        else:
+            try:
+                self.perform_update(serializer)
+            except Exception:
+                return Response(
+                    {"message": "User data has not been updated"},
+                    status=status.HTTP_417_EXPECTATION_FAILED
+                )
+
+            message = "User details updated"
+            status_code = status.HTTP_200_OK
+
+        return Response({"message": message}, status=status_code)

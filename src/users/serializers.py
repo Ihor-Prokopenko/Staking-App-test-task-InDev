@@ -11,3 +11,11 @@ class UserSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "password": {"write_only": True},
         }
+
+
+class UserEditSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "username"]
+        partial = True
