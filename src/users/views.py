@@ -1,11 +1,14 @@
 from django.contrib.auth.hashers import make_password
-from rest_framework import status, filters
+from rest_framework import status, filters, permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView
+from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from users.models import User
 from users.serializers import UserSerializer
+from users.user_permissions import OwnOrAdminPermission
 
 
 class UserCreateAPIView(CreateAPIView):
@@ -53,3 +56,18 @@ class UserListAPIView(ListAPIView):
 
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DeleteUserAPIView(APIView):
+    permission_classes = [permissions.IsAuthenticated, OwnOrAdminPermission]
+    http_method_names = ["delete"]
+
+    def delete(self, request: Request, pk):
+        user = User.objects.filter(pk=pk).first()
+        if not user:
+            return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        deleted_count, data = user.delete()
+        if not deleted_count:
+            return Response({"message": "User has not been deleted"}, status=status.HTTP_417_EXPECTATION_FAILED)
+
+        return Response({"message": f"User(id={pk}) was deleted successfully"}, status=status.HTTP_200_OK)
