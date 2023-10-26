@@ -5,7 +5,6 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from users.models import User
 from users.serializers import UserSerializer, UserEditSerializer, ChangePasswordSerializer
@@ -14,6 +13,7 @@ from users.user_permissions import OwnOrAdminPermission
 
 class UserCreateAPIView(CreateAPIView):
     serializer_class = UserSerializer
+    http_method_names = ["post"]
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -40,6 +40,7 @@ class UserCreateAPIView(CreateAPIView):
 class UserListAPIView(ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    http_method_names = ["get"]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["username", "email"]
     ordering_fields = "__all__"
@@ -59,7 +60,19 @@ class UserListAPIView(ListAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class DeleteUserAPIView(APIView):
+class UserDetailAPIView(GenericAPIView):
+    permission_classes = [permissions.IsAuthenticated, OwnOrAdminPermission]
+    http_method_names = ["get"]
+
+    def get(self, request, pk):
+        user = User.objects.filter(pk=pk).first()
+        if not user:
+            return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        serializer = UserSerializer(user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class DeleteUserAPIView(GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, OwnOrAdminPermission]
     http_method_names = ["delete"]
 
@@ -77,6 +90,7 @@ class DeleteUserAPIView(APIView):
 class UserEditAPIView(mixins.UpdateModelMixin, GenericAPIView):
     queryset = User.objects.all()
     serializer_class = UserEditSerializer
+    http_method_names = ["put"]
     permission_classes = [permissions.IsAuthenticated]
 
     def put(self, request, *args, **kwargs):
@@ -108,6 +122,7 @@ class UserEditAPIView(mixins.UpdateModelMixin, GenericAPIView):
 class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
     serializer_class = ChangePasswordSerializer
     permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["put"]
 
     def put(self, request, *args, **kwargs):
         user = self.request.user
