@@ -1,9 +1,10 @@
 from django.contrib.auth.hashers import make_password
-from rest_framework import status
+from rest_framework import status, filters
 from rest_framework.exceptions import ValidationError
-from rest_framework.generics import CreateAPIView
+from rest_framework.generics import CreateAPIView, ListAPIView
 from rest_framework.response import Response
 
+from users.models import User
 from users.serializers import UserSerializer
 
 
@@ -30,3 +31,25 @@ class UserCreateAPIView(CreateAPIView):
             status_code = status.HTTP_201_CREATED
 
         return Response({"message": message}, status=status_code)
+
+
+class UserListAPIView(ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["username", "email"]
+    ordering_fields = "__all__"
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            response_data = {
+                "pages": (queryset.count() + self.pagination_class.page_size - 1) // self.pagination_class.page_size,
+                "data": serializer.data,
+            }
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
