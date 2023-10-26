@@ -1,4 +1,5 @@
-from django.contrib.auth.hashers import make_password
+from django.contrib.auth import logout
+from django.contrib.auth.hashers import check_password, make_password
 from rest_framework import status, filters, permissions, mixins
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
@@ -7,7 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from users.models import User
-from users.serializers import UserSerializer, UserEditSerializer
+from users.serializers import UserSerializer, UserEditSerializer, ChangePasswordSerializer
 from users.user_permissions import OwnOrAdminPermission
 
 
@@ -73,7 +74,7 @@ class DeleteUserAPIView(APIView):
         return Response({"message": f"User(id={pk}) was deleted successfully"}, status=status.HTTP_200_OK)
 
 
-class UserEditView(mixins.UpdateModelMixin, GenericAPIView):
+class UserEditAPIView(mixins.UpdateModelMixin, GenericAPIView):
     queryset = User.objects.all()
     serializer_class = UserEditSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -102,3 +103,49 @@ class UserEditView(mixins.UpdateModelMixin, GenericAPIView):
             status_code = status.HTTP_200_OK
 
         return Response({"message": message}, status=status_code)
+
+
+class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
+    serializer_class = ChangePasswordSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def put(self, request, *args, **kwargs):
+        user = self.request.user
+        serializer = self.get_serializer(data=request.data)
+
+        try:
+            serializer.is_valid(raise_exception=True)
+        except ValidationError as e:
+            return Response({"message": str(e)}, status=status.HTTP_412_PRECONDITION_FAILED)
+
+        old_password = serializer.validated_data.get("old_password")
+        new_password = serializer.validated_data.get("new_password")
+        confirm_password = serializer.validated_data.get("confirm_password")
+
+        if new_password == old_password:
+            return Response(
+                {"message": "New password must be different from old password"},
+                status=status.HTTP_412_PRECONDITION_FAILED,
+            )
+
+        if not check_password(old_password, user.password):
+            return Response({"message": "Invalid old password"}, status=status.HTTP_412_PRECONDITION_FAILED)
+
+        if new_password != confirm_password:
+            return Response({"message": "Password mismatch"}, status=status.HTTP_412_PRECONDITION_FAILED)
+
+        try:
+            user.set_password(new_password)
+            user.save()
+        except Exception:
+            return Response(
+                {"message": "Password has not been changed"},
+                status=status.HTTP_417_EXPECTATION_FAILED
+                )
+
+        logout(request)
+        return Response(
+            {"message": "Password changed successfully. You can login now."},
+            status=status.HTTP_200_OK
+            )
+

@@ -19,3 +19,9 @@ class UserEditSerializer(serializers.ModelSerializer):
         model = User
         fields = ["id", "email", "username"]
         partial = True
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+    confirm_password = serializers.CharField(required=True)
