@@ -23,6 +23,14 @@ api_v1_urls = [
         include([
             path("users/", include("users.urls")),
         ])
+    ),
+    path(
+        "staking/",
+        include(
+            [
+                path("", include("staking_app.urls")),
+            ]
+        )
     )
 ]
 
