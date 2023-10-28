@@ -40,6 +40,7 @@ class UserCreateAPIView(CreateAPIView):
 class UserListAPIView(ListAPIView):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated, OwnOrAdminPermission]
     http_method_names = ["get"]
     filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["username", "email"]
@@ -98,23 +99,19 @@ class UserEditAPIView(mixins.UpdateModelMixin, GenericAPIView):
         user = request.user
         serializer = self.get_serializer(user, data=request.data, partial=partial)
 
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError as e:
-            field, message = (list(e.detail.keys())[0], list(e.detail.values())[0][0])
-            message = f"{field}: {message}"
-            status_code = status.HTTP_400_BAD_REQUEST
-        else:
-            try:
-                self.perform_update(serializer)
-            except Exception:
-                return Response(
-                    {"message": "User data has not been updated"},
-                    status=status.HTTP_417_EXPECTATION_FAILED
-                )
+        if not serializer.is_valid():
+            return Response({"message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-            message = "User details updated"
-            status_code = status.HTTP_200_OK
+        try:
+            self.perform_update(serializer)
+        except Exception:
+            return Response(
+                {"message": "User data has not been updated"},
+                status=status.HTTP_417_EXPECTATION_FAILED
+            )
+
+        message = "User details updated"
+        status_code = status.HTTP_200_OK
 
         return Response({"message": message}, status=status_code)
 
@@ -128,10 +125,8 @@ class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
         user = self.request.user
         serializer = self.get_serializer(data=request.data)
 
-        try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError as e:
-            return Response({"message": str(e)}, status=status.HTTP_412_PRECONDITION_FAILED)
+        if not serializer.is_valid():
+            return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
 
         old_password = serializer.validated_data.get("old_password")
         new_password = serializer.validated_data.get("new_password")
@@ -163,4 +158,3 @@ class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
             {"message": "Password changed successfully. You can login now."},
             status=status.HTTP_200_OK
             )
-

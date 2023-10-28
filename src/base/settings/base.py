@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+from datetime import timedelta
 
 from environ import Env
 
@@ -28,6 +29,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     'rest_framework',
+    'rest_framework_simplejwt',
 
     'users',
 
@@ -88,8 +90,14 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
     ],
     "EXCEPTION_HANDLER": "users.utils.custom_exception_handler",
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
 }
 
 

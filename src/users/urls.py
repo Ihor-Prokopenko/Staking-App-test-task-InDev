@@ -1,4 +1,5 @@
 from django.urls import path, include
+from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 
 from users import views
 
@@ -12,4 +13,9 @@ crud = [
     path("change-password/", views.UserChangePasswordAPIView.as_view(), name="change_password"),
 ]
 
-urlpatterns = [] + crud
+auth = [
+    path('token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+]
+
+urlpatterns = [] + crud + auth
