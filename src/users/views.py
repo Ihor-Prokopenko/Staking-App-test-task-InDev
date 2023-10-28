@@ -1,7 +1,6 @@
 from django.contrib.auth import logout
 from django.contrib.auth.hashers import check_password, make_password
 from rest_framework import status, filters, permissions, mixins
-from rest_framework.exceptions import ValidationError
 from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -18,23 +17,18 @@ class UserCreateAPIView(CreateAPIView):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
 
+        if not serializer.is_valid():
+            return Response({"message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        validated_data = serializer.validated_data
+        password = validated_data.get("password")
+        hashed_password = make_password(password)
+        serializer.validated_data["password"] = hashed_password
         try:
-            serializer.is_valid(raise_exception=True)
-        except ValidationError as e:
-            field, message = (list(e.detail.keys())[0], list(e.detail.values())[0][0])
-            message = f"{field}: {message}"
-            status_code = status.HTTP_400_BAD_REQUEST
-        else:
-            validated_data = serializer.validated_data
-            password = validated_data.get("password")
-            hashed_password = make_password(password)
-            serializer.validated_data["password"] = hashed_password
             serializer.save()
-
-            message = f"Registration successful"
-            status_code = status.HTTP_201_CREATED
-
-        return Response({"message": message}, status=status_code)
+        except Exception:
+            return Response({"message": "User were not created"}, status=status.HTTP_417_EXPECTATION_FAILED)
+        return Response({"message": "Registration successful"}, status=status.HTTP_201_CREATED)
 
 
 class UserListAPIView(ListAPIView):
@@ -70,6 +64,7 @@ class UserDetailAPIView(GenericAPIView):
         if not user:
             return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
         serializer = UserSerializer(user)
+
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
@@ -81,6 +76,7 @@ class DeleteUserAPIView(GenericAPIView):
         user = User.objects.filter(pk=pk).first()
         if not user:
             return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+
         deleted_count, data = user.delete()
         if not deleted_count:
             return Response({"message": "User has not been deleted"}, status=status.HTTP_417_EXPECTATION_FAILED)
@@ -110,10 +106,7 @@ class UserEditAPIView(mixins.UpdateModelMixin, GenericAPIView):
                 status=status.HTTP_417_EXPECTATION_FAILED
             )
 
-        message = "User details updated"
-        status_code = status.HTTP_200_OK
-
-        return Response({"message": message}, status=status_code)
+        return Response({"message": "User details updated"}, status=status.HTTP_200_OK)
 
 
 class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
@@ -124,7 +117,6 @@ class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
     def put(self, request, *args, **kwargs):
         user = self.request.user
         serializer = self.get_serializer(data=request.data)
-
         if not serializer.is_valid():
             return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
 
@@ -154,6 +146,7 @@ class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
                 )
 
         logout(request)
+
         return Response(
             {"message": "Password changed successfully. You can login now."},
             status=status.HTTP_200_OK
