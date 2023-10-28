@@ -1,12 +1,13 @@
-from django.contrib.auth import logout
+from django.contrib.auth import logout, authenticate, login
 from django.contrib.auth.hashers import check_password, make_password
 from rest_framework import status, filters, permissions, mixins
 from rest_framework.generics import CreateAPIView, ListAPIView, GenericAPIView
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from users.models import User
-from users.serializers import UserSerializer, UserEditSerializer, ChangePasswordSerializer
+from users.serializers import UserSerializer, UserEditSerializer, ChangePasswordSerializer, LoginSerializer
 from users.user_permissions import OwnOrAdminPermission
 
 
@@ -151,3 +152,33 @@ class UserChangePasswordAPIView(mixins.UpdateModelMixin, GenericAPIView):
             {"message": "Password changed successfully. You can login now."},
             status=status.HTTP_200_OK
             )
+
+
+class UserLoginView(GenericAPIView):
+    permission_classes = [~permissions.IsAuthenticated]
+    http_method_names = ["post"]
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({"message": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+
+        user = authenticate(username=serializer.data.get("username"), password=serializer.data.get("password"))
+
+        if user is None:
+            return Response({'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+        if not user.is_active:
+            return Response({'message': 'User is not active'}, status=status.HTTP_400_BAD_REQUEST)
+        login(request, user)
+
+        return Response({'message': 'Login successful'})
+
+
+class UserLogoutView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    http_method_names = ["post"]
+
+    def post(self, request):
+        logout(request)
+        return Response({'message': 'Logout successful'})
