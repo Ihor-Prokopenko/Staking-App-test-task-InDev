@@ -32,7 +32,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
 
     'users',
-
+    'staking_app',
 ]
 
 MIDDLEWARE = [
