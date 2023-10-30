@@ -8,7 +8,7 @@ class UserWallet(models.Model):
     balance = models.DecimalField(max_digits=20, decimal_places=10, default=0)
 
     def __str__(self):
-        return f"Wallet of {self.user}"
+        return f"ID:{self.pk} | Wallet of {self.user}"
 
     def replenish(self, amount):
         self.balance += amount
@@ -25,7 +25,7 @@ class UserPosition(models.Model):
     amount = models.DecimalField(max_digits=20, decimal_places=10)
 
     def __str__(self):
-        return f"{self.user} - {self.pool}"
+        return f"ID:{self.pk} | {self.user} - {self.amount}"
 
     def save(self, *args, **kwargs):
         if self.amount > self.pool.conditions.max_amount:
@@ -88,7 +88,7 @@ class StackingPool(models.Model):
     conditions = models.ForeignKey('PoolConditions', on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"{self.name} | {str(self.conditions)}"
+        return f"ID:{self.pk} | {self.name} | {str(self.conditions)}"
 
 
 class PoolConditions(models.Model):
@@ -96,7 +96,7 @@ class PoolConditions(models.Model):
     max_amount = models.DecimalField(max_digits=20, decimal_places=10)
 
     def __str__(self):
-        return f"{self.min_amount} - {self.max_amount}"
+        return f"ID:{self.pk} | {self.min_amount} - {self.max_amount}"
 
     def save(self, force_insert=False, force_update=False, using=None, update_fields=None):
         if self.max_amount <= self.min_amount:
