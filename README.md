@@ -9,7 +9,7 @@ This application is designed to conveniently manage various operations related t
 ## Installing:
 
 1. Clone project from GitHub repository
-    - `git clone URL`
+    - `git clone https://github.com/Ihor-Prokopenko/Staking-App-test-task-InDev.git`
 
 2. Make sure You have installed Python3:
     - Open the terminal and run:
