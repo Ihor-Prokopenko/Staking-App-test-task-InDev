@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from rest_framework.exceptions import ValidationError
 
 from staking_app.models import UserWallet, UserPosition, StackingPool, PoolConditions
 from staking_app.staking_exceptions import StackingPoolException, UserPositionException

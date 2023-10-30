@@ -25,6 +25,19 @@ class WalletDetailAPIView(GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, pk):
+        """
+        Get the user wallet by its primary key.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (int): The primary key of the user wallet.
+
+        Returns:
+            Response: The HTTP response containing the serialized user wallet data.
+
+        Raises:
+            status.HTTP_404_NOT_FOUND: If the wallet is not found.
+        """
         wallet = UserWallet.objects.filter(pk=pk).first()
 
         if not wallet:
@@ -42,6 +55,16 @@ class WalletReplenishAPIView(APIView):
 
     @swagger_auto_schema(request_body=swagger_schemas.replenish_withdraw_schema)
     def post(self, request, *args, **kwargs):
+        """
+        Provide a replenish of the user wallet.
+
+        Parameters:
+            request (HttpRequest): The HTTP request object.
+            request['data']['amount']: The amount to replenish.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         serializer = staking_app_serializers.WalletReplenishSerializer(data=request.data, context={"request": request})
 
         if not serializer.is_valid():
@@ -58,6 +81,16 @@ class WalletWithdrawAPIView(APIView):
 
     @swagger_auto_schema(request_body=swagger_schemas.replenish_withdraw_schema)
     def post(self, request, *args, **kwargs):
+        """
+        Provide a withdrawal of the user wallet.
+
+        Parameters:
+            request (HttpRequest): The HTTP request object.
+            request['data']['amount']: The amount to withdraw.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         serializer = staking_app_serializers.WalletWithdrawSerializer(data=request.data, context={"request": request})
 
         if not serializer.is_valid():
@@ -75,6 +108,17 @@ class CreatePositionAPIView(CreateAPIView):
     http_method_names = ["post"]
 
     def create(self, request, *args, **kwargs):
+        """
+        Create a position.
+
+        Parameters:
+            request (HttpRequest): The HTTP request object.
+            request['data']['pool']: The pool address.
+            request['data']['amount']: The amount to add.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         serializer = self.get_serializer(data=request.data, context={"request": request})
         if not serializer.is_valid():
             return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
@@ -92,6 +136,15 @@ class PositionsListAPIView(ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
+        """
+        Get the positions list of the user.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+
+        Returns:
+            Response: The HTTP response containing the serialized positions list.
+        """
         user = User.objects.filter(pk=self.request.user.id).first()
         if not user:
             return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -104,6 +157,16 @@ class PositionDetailAPIView(GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
+        """
+        Get a position detail by its primary key.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the position.
+
+        Returns:
+            Response: The HTTP response containing the serialized position.
+        """
         position = UserPosition.objects.filter(pk=pk).first()
         if not position:
             return Response({"message": "Position not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -111,6 +174,16 @@ class PositionDetailAPIView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
+        """
+        Delete a position.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the position.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         position = UserPosition.objects.filter(pk=pk).first()
         if request.user.id != position.user.id or not request.user.is_staff:
             return Response({"message": "Position not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -127,6 +200,17 @@ class PositionIncreaseAPIView(APIView):
 
     @swagger_auto_schema(request_body=swagger_schemas.increase_decrease_position_schema)
     def post(self, request, pk):
+        """
+        Increase a position by a given amount.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the position.
+            request['data']['amount']: The amount to increase.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         position = UserPosition.objects.filter(pk=pk).first()
         if not position:
             return Response({"message": "Position not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -150,6 +234,17 @@ class PositionDecreaseAPIView(APIView):
 
     @swagger_auto_schema(request_body=swagger_schemas.increase_decrease_position_schema)
     def post(self, request, pk):
+        """
+        Decrease a position by a given amount.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the position.
+            request['data']['amount']: The amount to decrease.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         position = UserPosition.objects.filter(pk=pk).first()
         if not position:
             return Response({"message": "Position not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -175,6 +270,15 @@ class ConditionsListAPIView(ListAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
+        """
+        Get all conditions.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+
+        Returns:
+            Response: The HTTP response containing the serialized conditions list.
+        """
         return self.list(request, *args, **kwargs)
 
 
@@ -183,6 +287,17 @@ class ConditionsCreateAPIView(CreateAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def create(self, request, *args, **kwargs):
+        """
+        Create a new condition.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            request['data']['minimum_amount']: The minimum amount.
+            request['data']['maximum_amount']: The maximum amount.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
@@ -199,6 +314,16 @@ class ConditionsDetailAPIView(GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, pk):
+        """
+        Get a condition.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the condition.
+
+        Returns:
+            Response: The HTTP response containing the serialized condition.
+        """
         conditions = PoolConditions.objects.filter(pk=pk).first()
         if not conditions:
             return Response({"message": "Conditions not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -206,6 +331,16 @@ class ConditionsDetailAPIView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
+        """
+        Delete a condition.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the condition.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         conditions = PoolConditions.objects.filter(pk=pk).first()
         if not conditions:
             return Response({"message": "Conditions not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -223,6 +358,15 @@ class StackingPoolListAPIView(ListAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
+        """
+        Get all stacking pools.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+
+        Returns:
+            Response: The HTTP response containing the serialized stacking pools list.
+        """
         return self.list(request, *args, **kwargs)
 
 
@@ -231,6 +375,17 @@ class StackingPoolCreateAPIView(CreateAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def create(self, request, *args, **kwargs):
+        """
+        Create a new stacking pool.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            request['data']['name']: The name of the stacking pool.
+            request['data']['conditions']: The id of conditions.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
@@ -247,6 +402,16 @@ class StackingPoolDetailAPIView(GenericAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, pk):
+        """
+        Get a stacking pool.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the stacking pool.
+
+        Returns:
+            Response: The HTTP response containing the serialized stacking pool.
+        """
         stacking_pool = StackingPool.objects.filter(pk=pk).first()
         if not stacking_pool:
             return Response({"message": "Stacking pool not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -254,6 +419,16 @@ class StackingPoolDetailAPIView(GenericAPIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def delete(self, request, pk):
+        """
+        Delete a stacking pool.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the stacking pool.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         stacking_pool = StackingPool.objects.filter(pk=pk).first()
         if not stacking_pool:
             return Response({"message": "Stacking pool not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -275,6 +450,17 @@ class StackingPoolEditAPIView(UpdateAPIView):
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def update(self, request, pk):
+        """
+        Update a stacking pool.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            pk (str): The primary key of the stacking pool.
+            request['data']['name']: The name of the stacking pool.
+
+        Returns:
+            Response: The HTTP response object with the result of the operation.
+        """
         stacking_pool = self.get_queryset().filter(pk=pk).first()
         if not stacking_pool:
             return Response({"message": "Stacking pool not found"}, status=status.HTTP_404_NOT_FOUND)
