@@ -9,9 +9,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 env = Env()
 env_file_path = os.path.join(BASE_DIR, "../.env")
+env_file_path_example = os.path.join(BASE_DIR, "../.env.example")
 
 if os.path.exists(env_file_path):
     env.read_env(env_file=env_file_path)
+elif os.path.exists(env_file_path_example):
+    env.read_env(env_file=env_file_path_example)
 
 SECRET_KEY = env.str("SECRET_KEY")
 

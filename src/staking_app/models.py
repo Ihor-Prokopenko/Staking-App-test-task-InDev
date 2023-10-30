@@ -88,7 +88,7 @@ class StackingPool(models.Model):
     conditions = models.ForeignKey('PoolConditions', on_delete=models.CASCADE)
 
     def __str__(self):
-        return f"ID:{self.pk} | {self.name} | {str(self.conditions)}"
+        return f"ID:{self.pk} | {self.name} | {self.conditions.min_amount} - {self.conditions.max_amount}"
 
 
 class PoolConditions(models.Model):
