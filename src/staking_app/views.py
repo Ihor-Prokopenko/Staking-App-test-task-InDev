@@ -1,21 +1,19 @@
-from django.shortcuts import render
+from drf_yasg.utils import swagger_auto_schema
 from rest_framework import status, permissions
 from rest_framework.generics import ListAPIView, GenericAPIView, CreateAPIView, UpdateAPIView
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from staking_app.models import UserWallet, UserPosition, PoolConditions, StackingPool
-from staking_app.serializers import UserWalletSerializer, StackingPoolSerializer, \
-    PoolConditionsSerializer, WalletReplenishSerializer, WalletWithdrawSerializer, CreatePositionSerializer, \
-    UserPositionSerializer, UpdateStackingPoolSerializer
+from staking_app import serializers as staking_app_serializers
 from staking_app.staking_exceptions import UserPositionException, PoolConditionsException, StackingPoolException
 from users.models import User
-from users.user_permissions import OwnOrAdminPermission
+from staking_app import swagger_schemas
 
 
 class WalletsAPIView(ListAPIView):
     queryset = UserWallet.objects.all()
-    serializer_class = UserWalletSerializer
+    serializer_class = staking_app_serializers.UserWalletSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
@@ -23,16 +21,18 @@ class WalletsAPIView(ListAPIView):
 
 
 class WalletDetailAPIView(GenericAPIView):
-    serializer_class = UserWalletSerializer
+    serializer_class = staking_app_serializers.UserWalletSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, pk):
-        user = User.objects.filter(pk=pk).first()
+        wallet = UserWallet.objects.filter(pk=pk).first()
 
-        if not user:
-            return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        if not wallet:
+            return Response({"message": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
+        if wallet.user.id != request.user.id:
+            if not request.user.is_staff:
+                return Response({"message": "Wallet not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        wallet = user.wallet
         serializer = self.get_serializer(wallet)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
@@ -40,8 +40,9 @@ class WalletDetailAPIView(GenericAPIView):
 class WalletReplenishAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(request_body=swagger_schemas.replenish_withdraw_schema)
     def post(self, request, *args, **kwargs):
-        serializer = WalletReplenishSerializer(data=request.data, context={"request": request})
+        serializer = staking_app_serializers.WalletReplenishSerializer(data=request.data, context={"request": request})
 
         if not serializer.is_valid():
             return Response({"message": serializer.errors},
@@ -55,8 +56,9 @@ class WalletReplenishAPIView(APIView):
 class WalletWithdrawAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(request_body=swagger_schemas.replenish_withdraw_schema)
     def post(self, request, *args, **kwargs):
-        serializer = WalletWithdrawSerializer(data=request.data, context={"request": request})
+        serializer = staking_app_serializers.WalletWithdrawSerializer(data=request.data, context={"request": request})
 
         if not serializer.is_valid():
             return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
@@ -68,7 +70,7 @@ class WalletWithdrawAPIView(APIView):
 
 
 class CreatePositionAPIView(CreateAPIView):
-    serializer_class = CreatePositionSerializer
+    serializer_class = staking_app_serializers.CreatePositionSerializer
     permission_classes = [permissions.IsAuthenticated]
     http_method_names = ["post"]
 
@@ -86,7 +88,7 @@ class CreatePositionAPIView(CreateAPIView):
 
 class PositionsListAPIView(ListAPIView):
     queryset = UserPosition.objects.all()
-    serializer_class = UserPositionSerializer
+    serializer_class = staking_app_serializers.UserPositionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
@@ -98,7 +100,7 @@ class PositionsListAPIView(ListAPIView):
 
 
 class PositionDetailAPIView(GenericAPIView):
-    serializer_class = UserPositionSerializer
+    serializer_class = staking_app_serializers.UserPositionSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, pk):
@@ -123,6 +125,7 @@ class PositionDetailAPIView(GenericAPIView):
 class PositionIncreaseAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(request_body=swagger_schemas.increase_decrease_position_schema)
     def post(self, request, pk):
         position = UserPosition.objects.filter(pk=pk).first()
         if not position:
@@ -130,19 +133,22 @@ class PositionIncreaseAPIView(APIView):
         if request.user.id != position.user.id:
             return Response({"message": "Position not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            success = position.increase_position(request.data.get("amount"))
-        except UserPositionException as e:
-            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        if not success:
+        serializer = staking_app_serializers.PositionIncreaseSerializer(data=request.data, context={"pk": pk})
+        if not serializer.is_valid():
+            return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
+
+        updated_obj = serializer.save()
+
+        if not updated_obj:
             return Response({"message": "Position were not increased"}, status=status.HTTP_404_NOT_FOUND)
         return Response(
-            {"message": f"Position increased. Total amount: {position.amount}"}, status=status.HTTP_200_OK)
+            {"message": f"Position increased. Total amount: {updated_obj.amount}"}, status=status.HTTP_200_OK)
 
 
 class PositionDecreaseAPIView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @swagger_auto_schema(request_body=swagger_schemas.increase_decrease_position_schema)
     def post(self, request, pk):
         position = UserPosition.objects.filter(pk=pk).first()
         if not position:
@@ -150,20 +156,22 @@ class PositionDecreaseAPIView(APIView):
         if request.user.id != position.user.id:
             return Response({"message": "Position not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        try:
-            success = position.decrease_position(request.data.get("amount"))
-        except UserPositionException as e:
-            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-        if not success:
+        serializer = staking_app_serializers.PositionDecreaseSerializer(data=request.data, context={"pk": pk})
+        if not serializer.is_valid():
+            return Response({"message": serializer.errors}, status=status.HTTP_412_PRECONDITION_FAILED)
+
+        updated_obj = serializer.save()
+
+        if not updated_obj:
             return Response({"message": "Position were not decreased"}, status=status.HTTP_404_NOT_FOUND)
         return Response(
-            {"message": f"Position decreased. Total amount: {position.amount}"}, status=status.HTTP_200_OK
+            {"message": f"Position decreased. Total amount: {updated_obj.amount}"}, status=status.HTTP_200_OK
         )
 
 
 class ConditionsListAPIView(ListAPIView):
     queryset = PoolConditions.objects.all()
-    serializer_class = PoolConditionsSerializer
+    serializer_class = staking_app_serializers.PoolConditionsSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
@@ -171,7 +179,7 @@ class ConditionsListAPIView(ListAPIView):
 
 
 class ConditionsCreateAPIView(CreateAPIView):
-    serializer_class = PoolConditionsSerializer
+    serializer_class = staking_app_serializers.PoolConditionsSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def create(self, request, *args, **kwargs):
@@ -187,7 +195,7 @@ class ConditionsCreateAPIView(CreateAPIView):
 
 
 class ConditionsDetailAPIView(GenericAPIView):
-    serializer_class = PoolConditionsSerializer
+    serializer_class = staking_app_serializers.PoolConditionsSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, pk):
@@ -211,7 +219,7 @@ class ConditionsDetailAPIView(GenericAPIView):
 
 class StackingPoolListAPIView(ListAPIView):
     queryset = StackingPool.objects.all()
-    serializer_class = StackingPoolSerializer
+    serializer_class = staking_app_serializers.StackingPoolSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, *args, **kwargs):
@@ -219,7 +227,7 @@ class StackingPoolListAPIView(ListAPIView):
 
 
 class StackingPoolCreateAPIView(CreateAPIView):
-    serializer_class = StackingPoolSerializer
+    serializer_class = staking_app_serializers.StackingPoolSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def create(self, request, *args, **kwargs):
@@ -235,7 +243,7 @@ class StackingPoolCreateAPIView(CreateAPIView):
 
 
 class StackingPoolDetailAPIView(GenericAPIView):
-    serializer_class = StackingPoolSerializer
+    serializer_class = staking_app_serializers.StackingPoolSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def get(self, request, pk):
@@ -249,6 +257,8 @@ class StackingPoolDetailAPIView(GenericAPIView):
         stacking_pool = StackingPool.objects.filter(pk=pk).first()
         if not stacking_pool:
             return Response({"message": "Stacking pool not found"}, status=status.HTTP_404_NOT_FOUND)
+        for position in stacking_pool.positions.all():
+            position.money_back()
         deleted_count, data = stacking_pool.delete()
         if not deleted_count:
             return Response(
@@ -261,7 +271,7 @@ class StackingPoolDetailAPIView(GenericAPIView):
 
 class StackingPoolEditAPIView(UpdateAPIView):
     queryset = StackingPool.objects.all()
-    serializer_class = UpdateStackingPoolSerializer
+    serializer_class = staking_app_serializers.UpdateStackingPoolSerializer
     permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
 
     def update(self, request, pk):

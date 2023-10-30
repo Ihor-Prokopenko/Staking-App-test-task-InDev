@@ -34,9 +34,8 @@ class UserPosition(models.Model):
             raise UserPositionException(f"Amount too small. Min amount is {self.pool.conditions.min_amount}")
 
         if not self.pk:  # check if this is a new position, then withdraw the amount
-            # user = self.user
             if self.user.wallet.balance < self.amount:
-                raise UserPositionException(f"User balance too low. User balance is {user.wallet.balance}")
+                raise UserPositionException(f"User balance too low. User balance is {self.user.wallet.balance}")
             self.user.wallet.withdraw(self.amount)
         super().save(*args, **kwargs)
 
@@ -73,8 +72,11 @@ class UserPosition(models.Model):
         self.save()
         return True
 
-    def delete(self, using=None, keep_parents=False):
+    def money_back(self):
         self.user.wallet.replenish(self.amount)
+
+    def delete(self, using=None, keep_parents=False):
+        self.money_back()
         return super().delete()
 
     def check_blockchain_status(self):

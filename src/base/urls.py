@@ -17,23 +17,19 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
+from .yasg import urlpatterns as doc_urls
+
 api_v1_urls = [
     path(
         "api/v1/",
         include([
             path("users/", include("users.urls")),
+            path("staking/", include("staking_app.urls")),
         ])
     ),
-    path(
-        "staking/",
-        include(
-            [
-                path("", include("staking_app.urls")),
-            ]
-        )
-    )
 ]
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    *doc_urls,
 ] + api_v1_urls
