@@ -1,3 +1,8 @@
+Test GA traffic:
+without tag: https://8d18fee9cc52.ngrok.app/
+with tag: https://8d18fee9cc52.ngrok.app/?utm_campaign=41323421
+
+
 Author - Ihor Prokopenko:
  - Email: i.prokopenko.dev@gmail.com
  - LinkedIn: https://www.linkedin.com/in/i-prokopenko/
