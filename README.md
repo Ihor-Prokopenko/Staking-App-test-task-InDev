@@ -1,6 +1,5 @@
 Test GA traffic:
 - without tag: https://ihor.ngrok.dev/
-- with tag: https://ihor.ngrok.dev/?utm_campaign=41323421
 
 
 Author - Ihor Prokopenko:
